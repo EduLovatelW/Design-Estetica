@@ -138,8 +138,8 @@ export default function BookingFlow() {
             !disponivel
               ? "text-stone-300 cursor-default"
               : selecionado
-                ? "bg-[#1A1612] text-[#F9F5EF] cursor-pointer font-medium"
-                : "text-[#1A1612] font-semibold cursor-pointer hover:bg-[#C9A96E]/15",
+                ? "bg-[#2D1B33] text-[#FFF8F0] cursor-pointer font-medium"
+                : "text-[#2D1B33] font-semibold cursor-pointer hover:bg-[#D4548A]/15",
           ].join(" ")}
         >
           {d}
@@ -150,24 +150,21 @@ export default function BookingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F5EF]">
+    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #F5E6F0 0%, #EDE0F5 100%)' }}>
 
       {/* ── HEADER ── */}
-      <header className="bg-[#1A1612] py-14 text-center px-4 sm:px-6">
-        <p className="text-[#C9A96E] text-[10px] tracking-[0.4em] uppercase mb-4" style={sans}>
-          Bem-vinda ao
-        </p>
-        <h1 className="text-5xl font-light text-[#F9F5EF] tracking-wide leading-tight" style={serif}>
+      <header className="bg-[#2D1B33] py-14 text-center px-4 sm:px-6">
+        <h1 className="text-5xl font-light text-[#FFF8F0] tracking-wide leading-tight" style={serif}>
           Luana Miniuk{" "}
           <em className="font-light">Studio</em>
         </h1>
-        <p className="text-[#C9A96E] text-[10px] tracking-[0.45em] uppercase mt-4" style={sans}>
+        <p className="text-[#D4548A] text-[10px] tracking-[0.45em] uppercase mt-4" style={sans}>
           Beleza &amp; Estética Avançada
         </p>
         <div className="flex items-center justify-center gap-4 mt-6">
-          <div className="h-px w-16 bg-[#C9A96E] opacity-40" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#C9A96E] opacity-60" />
-          <div className="h-px w-16 bg-[#C9A96E] opacity-40" />
+          <div className="h-px w-16 bg-[#D4548A] opacity-40" />
+          <div className="w-1.5 h-1.5 rounded-full bg-[#D4548A] opacity-60" />
+          <div className="h-px w-16 bg-[#D4548A] opacity-40" />
         </div>
       </header>
 
@@ -185,16 +182,16 @@ export default function BookingFlow() {
                 >
                   <span className={[
                     "w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-medium transition-all shrink-0",
-                    done   ? "bg-[#C9A96E] text-white"
-                           : active ? "bg-[#1A1612] text-[#F9F5EF]"
+                    done   ? "bg-[#D4548A] text-white"
+                           : active ? "bg-[#2D1B33] text-[#FFF8F0]"
                                     : "border border-stone-300 text-stone-300",
                   ].join(" ")} style={sans}>
                     {done ? "✓" : n}
                   </span>
                   <span className={[
                     "text-[10px] tracking-[0.2em] uppercase hidden sm:block",
-                    done   ? "text-[#C9A96E]"
-                           : active ? "text-[#1A1612] font-semibold"
+                    done   ? "text-[#D4548A]"
+                           : active ? "text-[#2D1B33] font-semibold"
                                     : "text-stone-300",
                   ].join(" ")} style={sans}>
                     {label}
@@ -203,7 +200,7 @@ export default function BookingFlow() {
                 {i < STEPS_NAV.length - 1 && (
                   <div className={[
                     "w-8 md:w-14 h-px mx-3 transition-colors",
-                    done ? "bg-[#C9A96E]" : "bg-stone-200",
+                    done ? "bg-[#D4548A]" : "bg-stone-200",
                   ].join(" ")} />
                 )}
               </div>
@@ -222,11 +219,11 @@ export default function BookingFlow() {
         {step === 1 && (
           <div>
             <div className="mb-8">
-              <h2 className="text-4xl font-light italic text-[#1A1612] mb-2" style={serif}>
-                Qual serviço?
+              <h2 className="text-4xl font-semibold text-[#2D1B33] mb-2" style={serif}>
+                Escolha seu serviço
               </h2>
-              <p className="text-stone-400 text-sm" style={sans}>
-                Escolha o procedimento desejado
+              <p className="text-[#2D1B33] text-sm font-medium" style={sans}>
+                Selecione o procedimento que deseja realizar
               </p>
             </div>
 
@@ -258,23 +255,23 @@ export default function BookingFlow() {
                       className={[
                         "text-left p-5 rounded-xl border-2 bg-white transition-all",
                         sel
-                          ? "border-[#C9A96E] shadow-lg shadow-[#C9A96E]/15"
+                          ? "border-[#D4548A] shadow-lg shadow-[#D4548A]/15"
                           : "border-stone-100 hover:border-stone-200 hover:shadow-sm",
                       ].join(" ")}
                     >
                       <div className={[
                         "w-8 h-8 rounded-lg flex items-center justify-center text-sm mb-4 transition-colors",
-                        sel ? "bg-[#C9A96E]/20 text-[#C9A96E]" : "bg-[#F9F5EF] text-stone-400",
+                        sel ? "bg-[#D4548A]/20 text-[#D4548A]" : "bg-[#FFF8F0] text-stone-400",
                       ].join(" ")}>
                         ✦
                       </div>
-                      <p className="font-semibold text-[#1A1612] text-sm mb-1 leading-snug" style={sans}>
+                      <p className="font-semibold text-[#2D1B33] text-sm mb-1 leading-snug" style={sans}>
                         {s.nome}
                       </p>
-                      <p className="text-xs text-stone-400 mb-1" style={sans}>
+                      <p className="text-xs text-[#2D1B33] mb-1" style={sans}>
                         {s.duracao_min < 60 ? `${s.duracao_min} min` : `${s.duracao_min / 60}h`}
                       </p>
-                      <p className="text-sm font-medium text-[#C9A96E]" style={sans}>
+                      <p className="text-sm font-semibold text-[#D4548A]" style={sans}>
                         a partir de R$ {s.preco_base}
                       </p>
                     </button>
@@ -286,7 +283,7 @@ export default function BookingFlow() {
             <button
               disabled={!servicoSel}
               onClick={() => setStep(2)}
-              className="w-full mt-8 bg-[#1A1612] text-[#F9F5EF] py-4 rounded-xl text-xs tracking-[0.3em] uppercase font-medium disabled:opacity-30 transition-all hover:bg-[#2c231a]"
+              className="w-full mt-8 bg-[#2D1B33] text-[#FFF8F0] py-4 rounded-xl text-xs tracking-[0.3em] uppercase font-medium disabled:opacity-30 transition-all hover:bg-[#4a2d5a]"
               style={sans}
             >
               Continuar →
@@ -298,11 +295,11 @@ export default function BookingFlow() {
         {step === 2 && (
           <div>
             <div className="mb-8">
-              <h2 className="text-4xl font-light italic text-[#1A1612] mb-2" style={serif}>
-                Quando?
+              <h2 className="text-4xl font-semibold text-[#2D1B33] mb-2" style={serif}>
+                Escolha sua data
               </h2>
-              <p className="text-stone-400 text-sm" style={sans}>
-                Sábados e domingos disponíveis
+              <p className="text-[#2D1B33] text-sm font-medium" style={sans}>
+                Selecione uma data disponível
               </p>
             </div>
 
@@ -311,16 +308,16 @@ export default function BookingFlow() {
               <div className="flex items-center justify-between mb-6">
                 <button
                   onClick={() => { if (mes === 0) { setMes(11); setAno(a => a - 1); } else setMes(m => m - 1); }}
-                  className="w-9 h-9 rounded-full border border-stone-200 text-stone-500 hover:border-[#C9A96E] hover:text-[#C9A96E] transition-colors text-lg leading-none"
+                  className="w-9 h-9 rounded-full border border-stone-200 text-stone-500 hover:border-[#D4548A] hover:text-[#D4548A] transition-colors text-lg leading-none"
                 >
                   ‹
                 </button>
-                <span className="font-medium text-[#1A1612] tracking-wide text-sm" style={sans}>
+                <span className="font-medium text-[#2D1B33] tracking-wide text-sm" style={sans}>
                   {MESES[mes]} {ano}
                 </span>
                 <button
                   onClick={() => { if (mes === 11) { setMes(0); setAno(a => a + 1); } else setMes(m => m + 1); }}
-                  className="w-9 h-9 rounded-full border border-stone-200 text-stone-500 hover:border-[#C9A96E] hover:text-[#C9A96E] transition-colors text-lg leading-none"
+                  className="w-9 h-9 rounded-full border border-stone-200 text-stone-500 hover:border-[#D4548A] hover:text-[#D4548A] transition-colors text-lg leading-none"
                 >
                   ›
                 </button>
@@ -362,8 +359,8 @@ export default function BookingFlow() {
                         className={[
                           "py-2.5 rounded-lg border text-sm font-medium transition-all",
                           horarioSel === slot
-                            ? "bg-[#1A1612] text-[#F9F5EF] border-[#1A1612]"
-                            : "bg-white border-stone-200 text-[#1A1612] hover:border-[#C9A96E] hover:text-[#C9A96E]",
+                            ? "bg-[#2D1B33] text-[#FFF8F0] border-[#2D1B33]"
+                            : "bg-white border-stone-200 text-[#2D1B33] hover:border-[#D4548A] hover:text-[#D4548A]",
                         ].join(" ")}
                       >
                         {slot}
@@ -377,7 +374,7 @@ export default function BookingFlow() {
             <button
               disabled={!dataSel || !horarioSel}
               onClick={() => setStep(3)}
-              className="w-full bg-[#1A1612] text-[#F9F5EF] py-4 rounded-xl text-xs tracking-[0.3em] uppercase font-medium disabled:opacity-30 transition-all hover:bg-[#2c231a]"
+              className="w-full bg-[#2D1B33] text-[#FFF8F0] py-4 rounded-xl text-xs tracking-[0.3em] uppercase font-medium disabled:opacity-30 transition-all hover:bg-[#4a2d5a]"
               style={sans}
             >
               Continuar →
@@ -396,39 +393,39 @@ export default function BookingFlow() {
         {step === 3 && (
           <div>
             <div className="mb-8">
-              <h2 className="text-4xl font-light italic text-[#1A1612] mb-2" style={serif}>
-                Seus dados
+              <h2 className="text-4xl font-semibold text-[#2D1B33] mb-2" style={serif}>
+                Insira seus dados
               </h2>
-              <p className="text-stone-400 text-sm" style={sans}>
-                Para confirmar e enviar o lembrete
+              <p className="text-[#2D1B33] text-sm font-medium" style={sans}>
+                Preencha para confirmar seu agendamento
               </p>
             </div>
 
             {/* Resumo escuro */}
-            <div className="bg-[#1A1612] rounded-2xl p-6 mb-8 space-y-5">
+            <div className="bg-[#2D1B33] rounded-2xl p-6 mb-8 space-y-5">
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#C9A96E]/15 flex items-center justify-center text-[#C9A96E] text-sm shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#D4548A]/15 flex items-center justify-center text-[#D4548A] text-sm shrink-0 mt-0.5">
                   ✦
                 </div>
                 <div>
                   <p className="text-[10px] text-stone-500 uppercase tracking-[0.3em] mb-1" style={sans}>
                     Serviço
                   </p>
-                  <p className="text-[#F9F5EF] text-lg font-light" style={serif}>
+                  <p className="text-[#FFF8F0] text-lg font-light" style={serif}>
                     {servicoSel?.nome}
                   </p>
                 </div>
               </div>
               <div className="h-px bg-white/10" />
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-lg bg-[#C9A96E]/15 flex items-center justify-center text-[#C9A96E] text-sm shrink-0 mt-0.5">
+                <div className="w-8 h-8 rounded-lg bg-[#D4548A]/15 flex items-center justify-center text-[#D4548A] text-sm shrink-0 mt-0.5">
                   ◷
                 </div>
                 <div>
                   <p className="text-[10px] text-stone-500 uppercase tracking-[0.3em] mb-1" style={sans}>
                     Data e horário
                   </p>
-                  <p className="text-[#F9F5EF] text-lg font-light capitalize" style={serif}>
+                  <p className="text-[#FFF8F0] text-lg font-light capitalize" style={serif}>
                     {dataSel && formatData(dataSel)} às {horarioSel}
                   </p>
                 </div>
@@ -438,7 +435,7 @@ export default function BookingFlow() {
             {/* Campos */}
             <div className="space-y-5">
               <div>
-                <label className="block text-[10px] text-stone-400 uppercase tracking-[0.3em] mb-2" style={sans}>
+                <label className="block text-[10px] text-[#2D1B33] font-bold uppercase tracking-[0.3em] mb-2" style={sans}>
                   Nome completo
                 </label>
                 <input
@@ -446,11 +443,11 @@ export default function BookingFlow() {
                   onChange={e => setNome(e.target.value)}
                   placeholder="Seu nome"
                   style={sans}
-                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-[#1A1612] text-sm outline-none focus:border-[#C9A96E] transition-colors placeholder:text-stone-300"
+                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-[#2D1B33] text-sm outline-none focus:border-[#D4548A] transition-colors placeholder:text-stone-300"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-stone-400 uppercase tracking-[0.3em] mb-2" style={sans}>
+                <label className="block text-[10px] text-[#2D1B33] font-bold uppercase tracking-[0.3em] mb-2" style={sans}>
                   WhatsApp
                 </label>
                 <input
@@ -458,11 +455,11 @@ export default function BookingFlow() {
                   onChange={e => setWhatsapp(maskPhone(e.target.value))}
                   placeholder="(41) 99999-9999"
                   style={sans}
-                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-[#1A1612] text-sm outline-none focus:border-[#C9A96E] transition-colors placeholder:text-stone-300"
+                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-[#2D1B33] text-sm outline-none focus:border-[#D4548A] transition-colors placeholder:text-stone-300"
                 />
               </div>
               <div>
-                <label className="block text-[10px] text-stone-400 uppercase tracking-[0.3em] mb-2" style={sans}>
+                <label className="block text-[10px] text-[#2D1B33] font-bold uppercase tracking-[0.3em] mb-2" style={sans}>
                   Observações{" "}
                   <span className="normal-case tracking-normal text-stone-300">(opcional)</span>
                 </label>
@@ -471,7 +468,7 @@ export default function BookingFlow() {
                   onChange={e => setObs(e.target.value)}
                   placeholder="Alergias, preferências..."
                   style={sans}
-                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-[#1A1612] text-sm outline-none focus:border-[#C9A96E] transition-colors resize-none h-24 placeholder:text-stone-300"
+                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3.5 text-[#2D1B33] text-sm outline-none focus:border-[#D4548A] transition-colors resize-none h-24 placeholder:text-stone-300"
                 />
               </div>
             </div>
@@ -479,7 +476,7 @@ export default function BookingFlow() {
             <button
               disabled={!nome || whatsapp.replace(/\D/g, "").length < 10 || loading}
               onClick={confirmar}
-              className="w-full mt-8 bg-[#1A1612] text-[#F9F5EF] py-4 rounded-xl text-xs tracking-[0.3em] uppercase font-medium disabled:opacity-30 transition-all hover:bg-[#2c231a]"
+              className="w-full mt-8 bg-[#2D1B33] text-[#FFF8F0] py-4 rounded-xl text-xs tracking-[0.3em] uppercase font-medium disabled:opacity-30 transition-all hover:bg-[#4a2d5a]"
               style={sans}
             >
               {loading ? "Agendando..." : "Confirmar agendamento ✓"}
@@ -498,11 +495,11 @@ export default function BookingFlow() {
         {step === 4 && confirmado && (
           <div className="text-center max-w-md mx-auto py-4">
             {/* Ícone */}
-            <div className="w-16 h-16 rounded-full bg-[#C9A96E]/20 flex items-center justify-center mx-auto mb-6">
-              <span className="text-[#C9A96E] text-2xl">✓</span>
+            <div className="w-16 h-16 rounded-full bg-[#D4548A]/20 flex items-center justify-center mx-auto mb-6">
+              <span className="text-[#D4548A] text-2xl">✓</span>
             </div>
 
-            <h2 className="text-5xl font-light italic text-[#1A1612] mb-3" style={serif}>
+            <h2 className="text-5xl font-semibold text-[#2D1B33] mb-3" style={serif}>
               Agendado!
             </h2>
             <p className="text-stone-400 text-sm mb-8 leading-relaxed" style={sans}>
@@ -516,7 +513,7 @@ export default function BookingFlow() {
                 <p className="text-[10px] text-stone-400 uppercase tracking-[0.3em] mb-1" style={sans}>
                   Serviço
                 </p>
-                <p className="text-[#1A1612] text-lg font-light" style={serif}>
+                <p className="text-[#2D1B33] text-lg font-light" style={serif}>
                   {servicoSel?.nome}
                 </p>
               </div>
@@ -525,7 +522,7 @@ export default function BookingFlow() {
                 <p className="text-[10px] text-stone-400 uppercase tracking-[0.3em] mb-1" style={sans}>
                   Data e horário
                 </p>
-                <p className="text-[#1A1612] text-lg font-light capitalize" style={serif}>
+                <p className="text-[#2D1B33] text-lg font-light capitalize" style={serif}>
                   {dataSel && formatData(dataSel)} às {horarioSel}
                 </p>
               </div>
@@ -534,7 +531,7 @@ export default function BookingFlow() {
                 <p className="text-[10px] text-stone-400 uppercase tracking-[0.3em] mb-1" style={sans}>
                   Cliente
                 </p>
-                <p className="text-[#1A1612] text-lg font-light" style={serif}>
+                <p className="text-[#2D1B33] text-lg font-light" style={serif}>
                   {nome} · {whatsapp}
                 </p>
               </div>
@@ -568,7 +565,7 @@ export default function BookingFlow() {
                 setWhatsapp("");
                 setObs("");
               }}
-              className="w-full mt-3 py-3 text-xs text-stone-400 hover:text-[#1A1612] tracking-widest uppercase transition-colors"
+              className="w-full mt-3 py-3 text-xs text-stone-400 hover:text-[#2D1B33] tracking-widest uppercase transition-colors"
               style={sans}
             >
               Fazer novo agendamento
