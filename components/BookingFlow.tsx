@@ -150,7 +150,7 @@ export default function BookingFlow() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F5EF] overflow-x-hidden w-full">
+    <div className="min-h-screen bg-[#F9F5EF]">
 
       {/* ── HEADER ── */}
       <header className="bg-[#1A1612] py-14 text-center px-4 sm:px-6">
@@ -213,7 +213,10 @@ export default function BookingFlow() {
       </nav>
 
       {/* ── CONTEÚDO PRINCIPAL ── */}
-      <main className="max-w-[860px] mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main
+        className="max-w-[860px] mx-auto px-4 sm:px-6 lg:px-8 py-10"
+        style={{ paddingLeft: "clamp(1rem, 4vw, 2rem)", paddingRight: "clamp(1rem, 4vw, 2rem)" }}
+      >
 
         {/* ────────────── STEP 1 — SERVIÇO ────────────── */}
         {step === 1 && (
@@ -552,6 +555,24 @@ export default function BookingFlow() {
               </svg>
               Confirmar pelo WhatsApp
             </a>
+
+            <button
+              onClick={() => {
+                setStep(1);
+                setConfirmado(false);
+                setServicoSel(null);
+                setDataSel(null);
+                setHorarioSel(null);
+                setHorariosOcupados([]);
+                setNome("");
+                setWhatsapp("");
+                setObs("");
+              }}
+              className="w-full mt-3 py-3 text-xs text-stone-400 hover:text-[#1A1612] tracking-widest uppercase transition-colors"
+              style={sans}
+            >
+              Fazer novo agendamento
+            </button>
           </div>
         )}
 
