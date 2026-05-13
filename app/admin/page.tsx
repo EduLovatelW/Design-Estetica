@@ -7,7 +7,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 // ─── types ────────────────────────────────────────────────────────────────────
 
 type Tab = 'agenda' | 'servicos' | 'clientes' | 'financeiro' | 'bloqueios'
-
 type StatusAgendamento = 'pendente' | 'confirmado' | 'concluido' | 'cancelado'
 
 type Agendamento = {
@@ -28,12 +27,31 @@ type Servico = {
   ativo: boolean
 }
 
-type ClienteRaw = {
+type AgendamentoCliente = {
+  id: string
+  data: string
+  horario: string
+  status: StatusAgendamento
+  valor_cobrado: number | null
+  servicos: { nome: string } | null
+}
+
+type ClienteComHistorico = {
   id: string
   nome: string
   whatsapp: string
   observacoes: string | null
-  agendamentos: { count: number }[]
+  agendamentos: AgendamentoCliente[]
+}
+
+type GrupoCliente = {
+  whatsapp: string
+  nome: string
+  primaryId: string
+  observacoes: string | null
+  historia: (AgendamentoCliente & { clienteNome: string })[]
+  visitas_concluidas: number
+  valor_total: number
 }
 
 type AgendamentoFin = {
@@ -59,10 +77,10 @@ const serif = { fontFamily: 'var(--font-cormorant), Georgia, serif' } as const
 const sans  = { fontFamily: 'var(--font-dm-sans), sans-serif' } as const
 
 const STATUS_CFG: Record<StatusAgendamento, { label: string; bg: string; text: string; border: string }> = {
-  pendente:   { label: 'Pendente',   bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  confirmado: { label: 'Confirmado', bg: 'bg-blue-50',  text: 'text-blue-700',  border: 'border-blue-200'  },
-  concluido:  { label: 'Concluído',  bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200' },
-  cancelado:  { label: 'Cancelado',  bg: 'bg-red-50',   text: 'text-red-400',   border: 'border-red-200'   },
+  pendente:   { label: 'Pendente',   bg: 'bg-amber-50',  text: 'text-amber-700',  border: 'border-amber-200'  },
+  confirmado: { label: 'Confirmado', bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200'   },
+  concluido:  { label: 'Concluído',  bg: 'bg-green-50',  text: 'text-green-700',  border: 'border-green-200'  },
+  cancelado:  { label: 'Cancelado',  bg: 'bg-red-50',    text: 'text-red-400',    border: 'border-red-200'    },
 }
 
 const DIAS        = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
@@ -84,6 +102,40 @@ function formatarDataCurta(dateStr: string) {
   const [ano, mes, dia] = dateStr.split('-').map(Number)
   const d = new Date(ano, mes - 1, dia)
   return `${DIAS[d.getDay()]}, ${dia} ${MESES_ABREV[mes - 1]}.`
+}
+
+function nomeIniciais(nome: string) {
+  return nome.trim().split(/\s+/).slice(0, 2).map(n => n[0] ?? '').join('').toUpperCase()
+}
+
+function agruparPorWhatsApp(clientes: ClienteComHistorico[]): GrupoCliente[] {
+  const map = new Map<string, GrupoCliente>()
+  for (const c of clientes) {
+    const key = c.whatsapp
+    if (!map.has(key)) {
+      map.set(key, {
+        whatsapp: key, nome: c.nome, primaryId: c.id,
+        observacoes: c.observacoes, historia: [], visitas_concluidas: 0, valor_total: 0,
+      })
+    } else {
+      const g = map.get(key)!
+      if (!g.observacoes && c.observacoes) { g.observacoes = c.observacoes; g.primaryId = c.id }
+    }
+    const g = map.get(key)!
+    for (const ag of c.agendamentos ?? []) {
+      g.historia.push({ ...ag, clienteNome: c.nome })
+      if (ag.status === 'concluido') {
+        g.visitas_concluidas++
+        g.valor_total += ag.valor_cobrado ?? 0
+      }
+    }
+  }
+  for (const g of map.values()) {
+    g.historia.sort((a, b) =>
+      a.data !== b.data ? b.data.localeCompare(a.data) : b.horario.localeCompare(a.horario)
+    )
+  }
+  return Array.from(map.values()).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'))
 }
 
 function Spinner() {
@@ -112,17 +164,16 @@ function SecaoTitulo({ titulo, count }: { titulo: string; count?: number }) {
 // ─── aba: agenda ──────────────────────────────────────────────────────────────
 
 function CardAgendamento({
-  item,
-  showDate,
-  onAction,
+  item, showDate, onAction, muted = false,
 }: {
   item: Agendamento
   showDate: boolean
   onAction: (id: string, status: StatusAgendamento) => Promise<void>
+  muted?: boolean
 }) {
   const [atualizando, setAtualizando] = useState(false)
   const cfg = STATUS_CFG[item.status] ?? STATUS_CFG.pendente
-  const podeAcionar = item.status !== 'concluido' && item.status !== 'cancelado'
+  const podeAcionar = !muted && item.status !== 'concluido' && item.status !== 'cancelado'
 
   async function handle(status: StatusAgendamento) {
     setAtualizando(true)
@@ -131,7 +182,11 @@ function CardAgendamento({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className={`rounded-2xl border p-5 transition-shadow ${
+      muted
+        ? 'bg-stone-50 border-stone-100 opacity-60'
+        : 'bg-white border-stone-100 shadow-sm hover:shadow-md'
+    }`}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
           {showDate && (
@@ -184,11 +239,12 @@ function CardAgendamento({
 }
 
 function SecaoAgenda({
-  titulo, items, loading, showDate, vazio, onAction,
+  titulo, items, loading, showDate, vazio, onAction, muted = false,
 }: {
   titulo: string; items: Agendamento[]; loading: boolean
   showDate: boolean; vazio: string
   onAction: (id: string, status: StatusAgendamento) => Promise<void>
+  muted?: boolean
 }) {
   return (
     <section>
@@ -198,7 +254,7 @@ function SecaoAgenda({
       ) : (
         <div className="grid gap-3">
           {items.map(item => (
-            <CardAgendamento key={item.id} item={item} showDate={showDate} onAction={onAction} />
+            <CardAgendamento key={item.id} item={item} showDate={showDate} onAction={onAction} muted={muted} />
           ))}
         </div>
       )}
@@ -245,16 +301,12 @@ function AbaServicos({ sb }: { sb: SupabaseClient }) {
     await carregar()
   }
 
-  function abrirNovo() {
-    setModal({ nome: '', duracao_min: 60, preco_base: 0 })
-  }
-
   return (
     <div>
       <div className="flex items-center gap-4 mb-5">
         <h2 className="text-2xl font-light italic text-[#2D1B33] shrink-0" style={serif}>Serviços</h2>
         <div className="h-px flex-1 bg-stone-200" />
-        <button onClick={abrirNovo}
+        <button onClick={() => setModal({ nome: '', duracao_min: 60, preco_base: 0 })}
           className="text-[10px] tracking-[0.2em] uppercase font-medium bg-[#2D1B33] text-[#FFF8F0] px-4 py-2 rounded-xl hover:bg-[#4a2d5a] transition-colors shrink-0" style={sans}>
           + Novo
         </button>
@@ -333,8 +385,105 @@ function AbaServicos({ sb }: { sb: SupabaseClient }) {
 
 // ─── aba: clientes ────────────────────────────────────────────────────────────
 
+function CardClienteAgrupado({
+  grupo, obsEdit, salvando, onObsChange, onSalvarObs,
+}: {
+  grupo: GrupoCliente
+  obsEdit: Record<string, string>
+  salvando: Record<string, boolean>
+  onObsChange: (id: string, value: string) => void
+  onSalvarObs: (id: string) => void
+}) {
+  const [expandido, setExpandido] = useState(false)
+  const obsAtual = obsEdit[grupo.primaryId] !== undefined ? obsEdit[grupo.primaryId] : (grupo.observacoes ?? '')
+  const editando = obsEdit[grupo.primaryId] !== undefined
+  const ini = nomeIniciais(grupo.nome)
+
+  return (
+    <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+      <button onClick={() => setExpandido(e => !e)} className="w-full p-5 text-left active:bg-stone-50 transition-colors">
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold text-white select-none"
+            style={{ background: 'linear-gradient(135deg, #D4548A 0%, #7c3aed 100%)' }}
+          >
+            {ini}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-[#2D1B33] text-sm leading-tight" style={sans}>{grupo.nome}</p>
+            <p className="text-stone-400 text-xs mt-0.5" style={sans}>{grupo.whatsapp}</p>
+          </div>
+          <div className="text-right shrink-0 mr-2">
+            <p className="text-sm font-semibold text-[#2D1B33]" style={sans}>
+              {grupo.visitas_concluidas} {grupo.visitas_concluidas === 1 ? 'visita' : 'visitas'}
+            </p>
+            {grupo.valor_total > 0 && (
+              <p className="text-xs text-[#D4548A]" style={sans}>
+                R$ {grupo.valor_total.toFixed(2).replace('.', ',')}
+              </p>
+            )}
+          </div>
+          <span className="text-stone-300 text-xs shrink-0">{expandido ? '▲' : '▼'}</span>
+        </div>
+      </button>
+
+      {expandido && (
+        <div className="border-t border-stone-100 px-5 pb-5 pt-4">
+          {grupo.historia.length > 0 ? (
+            <div className="mb-4">
+              <p className="text-[10px] text-stone-400 tracking-[0.2em] uppercase mb-3" style={sans}>Histórico</p>
+              <div className="space-y-2.5">
+                {grupo.historia.map(ag => {
+                  const cfg = STATUS_CFG[ag.status] ?? STATUS_CFG.pendente
+                  return (
+                    <div key={ag.id} className="flex items-center gap-2 text-xs" style={sans}>
+                      <span className="text-stone-400 shrink-0 w-[88px]">{formatarDataCurta(ag.data)}</span>
+                      <span className="flex-1 text-stone-600 truncate min-w-0">{ag.servicos?.nome ?? '—'}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-medium tracking-wider border shrink-0 ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+                        {cfg.label}
+                      </span>
+                      {ag.valor_cobrado !== null && (
+                        <span className="text-stone-500 shrink-0 ml-1">
+                          R$ {ag.valor_cobrado.toFixed(2).replace('.', ',')}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <p className="text-stone-400 text-xs mb-4" style={sans}>Sem agendamentos registrados.</p>
+          )}
+
+          <div>
+            <p className="text-[10px] text-stone-400 tracking-[0.2em] uppercase mb-2" style={sans}>Observações</p>
+            <div className="flex gap-2 items-end">
+              <textarea
+                value={obsAtual}
+                onChange={e => onObsChange(grupo.primaryId, e.target.value)}
+                placeholder="Observações sobre a cliente..."
+                rows={2}
+                className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-xs text-[#2D1B33] outline-none focus:border-[#D4548A] transition-colors resize-none placeholder:text-stone-300"
+                style={sans}
+              />
+              {editando && (
+                <button onClick={() => onSalvarObs(grupo.primaryId)} disabled={salvando[grupo.primaryId]}
+                  className="py-2 px-3 rounded-xl text-[10px] tracking-[0.15em] uppercase font-medium bg-[#2D1B33] text-[#FFF8F0] disabled:opacity-50 hover:bg-[#4a2d5a] transition-colors whitespace-nowrap"
+                  style={sans}>
+                  {salvando[grupo.primaryId] ? '...' : 'Salvar'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AbaClientes({ sb }: { sb: SupabaseClient }) {
-  const [clientes, setClientes] = useState<ClienteRaw[]>([])
+  const [grupos, setGrupos] = useState<GrupoCliente[]>([])
   const [loading, setLoading] = useState(true)
   const [obsEdit, setObsEdit] = useState<Record<string, string>>({})
   const [salvando, setSalvando] = useState<Record<string, boolean>>({})
@@ -343,10 +492,10 @@ function AbaClientes({ sb }: { sb: SupabaseClient }) {
     setLoading(true)
     const { data, error } = await sb
       .from('clientes')
-      .select('id, nome, whatsapp, observacoes, agendamentos(count)')
+      .select('id, nome, whatsapp, observacoes, agendamentos(id, data, horario, status, valor_cobrado, servicos(nome))')
       .order('nome')
     if (error) console.error('[Clientes]', error)
-    setClientes((data as unknown as ClienteRaw[]) ?? [])
+    setGrupos(agruparPorWhatsApp((data as unknown as ClienteComHistorico[]) ?? []))
     setLoading(false)
   }, [sb])
 
@@ -362,48 +511,21 @@ function AbaClientes({ sb }: { sb: SupabaseClient }) {
 
   return (
     <div>
-      <SecaoTitulo titulo="Clientes" count={loading ? undefined : clientes.length} />
-
-      {loading ? <Spinner /> : clientes.length === 0 ? (
+      <SecaoTitulo titulo="Clientes" count={loading ? undefined : grupos.length} />
+      {loading ? <Spinner /> : grupos.length === 0 ? (
         <p className="text-stone-400 text-sm py-6" style={sans}>Nenhum cliente cadastrado.</p>
       ) : (
         <div className="grid gap-3">
-          {clientes.map(c => {
-            const total = c.agendamentos?.[0]?.count ?? 0
-            const obsAtual = obsEdit[c.id] !== undefined ? obsEdit[c.id] : (c.observacoes ?? '')
-            const editando = obsEdit[c.id] !== undefined
-
-            return (
-              <div key={c.id} className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div>
-                    <p className="font-semibold text-[#2D1B33] text-sm" style={sans}>{c.nome}</p>
-                    <p className="text-stone-400 text-xs mt-0.5" style={sans}>{c.whatsapp}</p>
-                  </div>
-                  <span className="text-[10px] text-[#D4548A] font-medium tracking-wider shrink-0" style={sans}>
-                    {total} agendamento{total !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="flex gap-2 items-end">
-                  <textarea
-                    value={obsAtual}
-                    onChange={e => setObsEdit(o => ({ ...o, [c.id]: e.target.value }))}
-                    placeholder="Observações sobre o cliente..."
-                    rows={2}
-                    className="flex-1 border border-stone-200 rounded-xl px-3 py-2 text-xs text-[#2D1B33] outline-none focus:border-[#D4548A] transition-colors resize-none placeholder:text-stone-300"
-                    style={sans}
-                  />
-                  {editando && (
-                    <button onClick={() => salvarObs(c.id)} disabled={salvando[c.id]}
-                      className="py-2 px-3 rounded-xl text-[10px] tracking-[0.15em] uppercase font-medium bg-[#2D1B33] text-[#FFF8F0] disabled:opacity-50 hover:bg-[#4a2d5a] transition-colors whitespace-nowrap"
-                      style={sans}>
-                      {salvando[c.id] ? '...' : 'Salvar'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )
-          })}
+          {grupos.map(g => (
+            <CardClienteAgrupado
+              key={g.whatsapp}
+              grupo={g}
+              obsEdit={obsEdit}
+              salvando={salvando}
+              onObsChange={(id, val) => setObsEdit(o => ({ ...o, [id]: val }))}
+              onSalvarObs={salvarObs}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -414,10 +536,10 @@ function AbaClientes({ sb }: { sb: SupabaseClient }) {
 
 function AbaFinanceiro({ sb }: { sb: SupabaseClient }) {
   const now = new Date()
-  const [ano, setAno]           = useState(now.getFullYear())
-  const [mes, setMes]           = useState(now.getMonth() + 1)
-  const [items, setItems]       = useState<AgendamentoFin[]>([])
-  const [loading, setLoading]   = useState(true)
+  const [ano, setAno]             = useState(now.getFullYear())
+  const [mes, setMes]             = useState(now.getMonth() + 1)
+  const [items, setItems]         = useState<AgendamentoFin[]>([])
+  const [loading, setLoading]     = useState(true)
   const [valorEdit, setValorEdit] = useState<Record<string, string>>({})
   const [salvando, setSalvando]   = useState<Record<string, boolean>>({})
 
@@ -459,7 +581,6 @@ function AbaFinanceiro({ sb }: { sb: SupabaseClient }) {
   const receita = items.reduce((s, a) => s + (a.valor_cobrado ?? 0), 0)
   const ticket  = total > 0 ? receita / total : 0
 
-  // barras por semana (dias 1-7, 8-14, 15-21, 22-28, 29-31)
   const semanas = [1, 2, 3, 4, 5].map(s => {
     const min = (s - 1) * 7 + 1
     const max = s * 7
@@ -490,7 +611,6 @@ function AbaFinanceiro({ sb }: { sb: SupabaseClient }) {
         </div>
       </div>
 
-      {/* cards de resumo */}
       <div className="grid grid-cols-3 gap-3 mb-5">
         {[
           { label: 'Atendimentos', value: String(total) },
@@ -504,7 +624,6 @@ function AbaFinanceiro({ sb }: { sb: SupabaseClient }) {
         ))}
       </div>
 
-      {/* gráfico de barras */}
       {!loading && total > 0 && (
         <div className="bg-white rounded-2xl border border-stone-100 p-5 mb-5 shadow-sm">
           <p className="text-[10px] text-stone-400 tracking-[0.2em] uppercase mb-4" style={sans}>
@@ -532,7 +651,6 @@ function AbaFinanceiro({ sb }: { sb: SupabaseClient }) {
         </div>
       )}
 
-      {/* lista editável */}
       {loading ? <Spinner /> : items.length === 0 ? (
         <p className="text-stone-400 text-sm py-6" style={sans}>
           Nenhum atendimento concluído neste mês.
@@ -552,7 +670,7 @@ function AbaFinanceiro({ sb }: { sb: SupabaseClient }) {
                     {a.clientes?.nome ?? '—'}
                   </p>
                   <p className="text-stone-400 text-xs" style={sans}>
-                    {a.servicos?.nome ?? '—'} · {a.horario.slice(0, 5)} · {a.data}
+                    {a.servicos?.nome ?? '—'} · {a.horario.slice(0, 5)} · {formatarDataCurta(a.data)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -599,7 +717,7 @@ function AbaBloqueios({ sb }: { sb: SupabaseClient }) {
       .gte('data', hojeStr)
       .order('data')
       .order('hora_inicio')
-    if (error) console.error('[Bloqueios]', error?.message, '| code:', error?.code, '| details:', JSON.stringify(error))
+    if (error) console.error('[Bloqueios]', error?.message, '| code:', error?.code)
     setBloqueios((data as Bloqueio[]) ?? [])
     setLoading(false)
   }, [sb, hojeStr])
@@ -640,7 +758,6 @@ function AbaBloqueios({ sb }: { sb: SupabaseClient }) {
     <div>
       <SecaoTitulo titulo="Bloqueios" />
 
-      {/* formulário */}
       <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm mb-6">
         <p className="text-[10px] text-stone-400 tracking-[0.2em] uppercase mb-4" style={sans}>
           Adicionar bloqueio de horário
@@ -678,7 +795,6 @@ function AbaBloqueios({ sb }: { sb: SupabaseClient }) {
         </button>
       </div>
 
-      {/* lista */}
       <div className="flex items-center gap-4 mb-4">
         <p className="text-sm font-medium text-stone-500 shrink-0" style={sans}>Bloqueios futuros</p>
         <div className="h-px flex-1 bg-stone-100" />
@@ -724,18 +840,22 @@ export default function AdminPage() {
   }
   const sb = sbRef.current
 
-  const [abaAtiva, setAbaAtiva]   = useState<Tab>('agenda')
-  const [hoje, setHoje]           = useState<Agendamento[]>([])
-  const [proximos, setProximos]   = useState<Agendamento[]>([])
-  const [loading, setLoading]     = useState(true)
+  const [abaAtiva, setAbaAtiva]         = useState<Tab>('agenda')
+  const [hoje, setHoje]                 = useState<Agendamento[]>([])
+  const [proximos, setProximos]         = useState<Agendamento[]>([])
+  const [historico, setHistorico]       = useState<Agendamento[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [loadingHist, setLoadingHist]   = useState(false)
+  const [mostrarHistorico, setMostrarHistorico] = useState(false)
+  const historicoCarregado              = useRef(false)
 
   const hojeStr = new Date().toISOString().split('T')[0]
 
   useEffect(() => {
     sb.auth.getSession().then(({ data, error }) => {
-      if (error)           console.error('[Admin] erro sessão:', error.message)
+      if (error)             console.error('[Admin] erro sessão:', error.message)
       else if (data.session) console.log('[Admin] sessão ativa —', data.session.user.email)
-      else                 console.warn('[Admin] sem sessão autenticada')
+      else                   console.warn('[Admin] sem sessão autenticada')
     })
   }, [sb])
 
@@ -743,9 +863,14 @@ export default function AdminPage() {
     setLoading(true)
     const select = 'id, data, horario, status, observacoes, clientes(nome, whatsapp), servicos(nome)'
     const [resHoje, resProximos] = await Promise.all([
-      sb.from('agendamentos').select(select).eq('data', hojeStr).order('horario'),
-      sb.from('agendamentos').select(select).gt('data', hojeStr)
-        .neq('status', 'cancelado').order('data').order('horario').limit(10),
+      sb.from('agendamentos').select(select)
+        .eq('data', hojeStr)
+        .in('status', ['pendente', 'confirmado'])
+        .order('horario'),
+      sb.from('agendamentos').select(select)
+        .gt('data', hojeStr)
+        .in('status', ['pendente', 'confirmado'])
+        .order('data').order('horario').limit(15),
     ])
     if (resHoje.error)     console.error('[Admin] query hoje:', resHoje.error)
     if (resProximos.error) console.error('[Admin] query proximos:', resProximos.error)
@@ -756,16 +881,46 @@ export default function AdminPage() {
 
   useEffect(() => { fetchAgenda() }, [fetchAgenda])
 
+  async function fetchHistorico() {
+    setLoadingHist(true)
+    const trintaDiasAtras = new Date()
+    trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30)
+    const inicioStr = trintaDiasAtras.toISOString().split('T')[0]
+    const select = 'id, data, horario, status, observacoes, clientes(nome, whatsapp), servicos(nome)'
+    const { data, error } = await sb
+      .from('agendamentos')
+      .select(select)
+      .in('status', ['concluido', 'cancelado'])
+      .gte('data', inicioStr)
+      .order('data', { ascending: false })
+      .order('horario', { ascending: false })
+      .limit(50)
+    if (error) console.error('[Admin] query historico:', error)
+    setHistorico((data as unknown as Agendamento[]) ?? [])
+    historicoCarregado.current = true
+    setLoadingHist(false)
+  }
+
+  function handleToggleHistorico() {
+    const abrindo = !mostrarHistorico
+    setMostrarHistorico(abrindo)
+    if (abrindo && !historicoCarregado.current) fetchHistorico()
+  }
+
   async function handleAction(id: string, status: StatusAgendamento) {
     const { error } = await sb.from('agendamentos').update({ status }).eq('id', id)
     if (error) console.error('[Admin] update status:', error)
     await fetchAgenda()
+    if (historicoCarregado.current) fetchHistorico()
   }
 
   async function handleLogout() {
     await sb.auth.signOut()
     router.push('/admin/login')
   }
+
+  const totalPendente = hoje.filter(a => a.status === 'pendente').length +
+                        proximos.filter(a => a.status === 'pendente').length
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #F5E6F0 0%, #EDE0F5 100%)' }}>
@@ -786,10 +941,15 @@ export default function AdminPage() {
         <div className="max-w-3xl mx-auto flex gap-0.5 overflow-x-auto">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setAbaAtiva(t.id)}
-              className={`px-4 py-2.5 text-[10px] tracking-[0.2em] uppercase font-medium rounded-t-xl transition-colors whitespace-nowrap ${
+              className={`px-4 py-2.5 text-[10px] tracking-[0.2em] uppercase font-medium rounded-t-xl transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                 abaAtiva === t.id ? 'bg-[#FFF8F0] text-[#2D1B33]' : 'text-stone-400 hover:text-[#D4548A]'
               }`} style={sans}>
               {t.label}
+              {t.id === 'agenda' && !loading && totalPendente > 0 && (
+                <span className="bg-[#D4548A] text-white text-[8px] rounded-full min-w-[15px] h-[15px] px-0.5 inline-flex items-center justify-center font-bold leading-none">
+                  {totalPendente}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -800,9 +960,39 @@ export default function AdminPage() {
         {abaAtiva === 'agenda' && (
           <div className="space-y-10">
             <SecaoAgenda titulo="Hoje" items={hoje} loading={loading} showDate={false}
-              vazio="Nenhum agendamento para hoje." onAction={handleAction} />
+              vazio="Nenhum agendamento ativo hoje." onAction={handleAction} />
             <SecaoAgenda titulo="Próximos agendamentos" items={proximos} loading={loading} showDate={true}
-              vazio="Nenhum agendamento futuro." onAction={handleAction} />
+              vazio="Nenhum agendamento futuro confirmado." onAction={handleAction} />
+
+            {/* histórico */}
+            <section>
+              <button
+                onClick={handleToggleHistorico}
+                className="flex items-center gap-3 w-full mb-5 group"
+              >
+                <h2 className="text-2xl font-light italic text-stone-400 shrink-0 group-hover:text-[#2D1B33] transition-colors" style={serif}>
+                  Histórico
+                </h2>
+                <div className="h-px flex-1 bg-stone-200" />
+                <span className="text-[10px] tracking-[0.2em] uppercase text-stone-400 group-hover:text-[#D4548A] transition-colors shrink-0" style={sans}>
+                  {mostrarHistorico ? 'Ocultar ▲' : 'Ver histórico ▼'}
+                </span>
+              </button>
+
+              {mostrarHistorico && (
+                loadingHist ? <Spinner /> : historico.length === 0 ? (
+                  <p className="text-stone-400 text-sm py-4" style={sans}>
+                    Nenhum atendimento concluído ou cancelado nos últimos 30 dias.
+                  </p>
+                ) : (
+                  <div className="grid gap-3">
+                    {historico.map(item => (
+                      <CardAgendamento key={item.id} item={item} showDate={true} onAction={handleAction} muted={true} />
+                    ))}
+                  </div>
+                )
+              )}
+            </section>
           </div>
         )}
         {abaAtiva === 'servicos'   && <AbaServicos   sb={sb} />}
