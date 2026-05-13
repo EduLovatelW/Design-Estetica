@@ -90,21 +90,44 @@ export default function BookingFlow() {
   const confirmar = async () => {
     if (!servicoSel || !dataSel || !horarioSel || !nome || !whatsapp) return;
     setLoading(true);
-    const { data: cliente } = await supabase.from("clientes")
-      .insert({ nome, whatsapp }).select().single();
-    if (cliente) {
-      const { data: ag } = await supabase.from("agendamentos")
-        .insert({
-          cliente_id: cliente.id,
-          servico_id: servicoSel.id,
-          data: dataSel.toISOString().split("T")[0],
-          horario: horarioSel,
-          status: "pendente",
-        })
+
+    const { data: cliente, error: erroCliente } = await supabase
+      .from("clientes")
+      .insert({ nome, whatsapp })
+      .select()
+      .single();
+
+    if (erroCliente || !cliente) {
+      console.error("[BookingFlow] erro ao criar cliente:", erroCliente);
+      setLoading(false);
+      return;
+    }
+
+    const dataStr = dataSel.toISOString().split("T")[0];
+
+    const { error: erroAg } = await supabase.from("agendamentos").insert({
+      cliente_id: cliente.id,
+      servico_id: servicoSel.id,
+      data: dataStr,
+      horario: horarioSel,
+      status: "pendente",
+    });
+
+    if (erroAg) {
+      console.error("[BookingFlow] erro ao criar agendamento:", erroAg);
+    } else {
+      const { data: ag, error: erroToken } = await supabase
+        .from("agendamentos")
         .select("cancel_token")
-        .single();
+        .eq("cliente_id", cliente.id)
+        .eq("data", dataStr)
+        .eq("horario", horarioSel)
+        .limit(1)
+        .maybeSingle();
+      if (erroToken) console.error("[BookingFlow] erro ao buscar token:", erroToken);
       if (ag?.cancel_token) setCancelToken(ag.cancel_token as string);
     }
+
     setLoading(false);
     setConfirmado(true);
     setStep(4);
@@ -545,7 +568,7 @@ export default function BookingFlow() {
             {/* Botão WhatsApp */}
             <a
               href={`https://wa.me/554699256686?text=${encodeURIComponent(
-                `Olá Luana! 😊 Acabei de agendar:\n📌 ${servicoSel?.nome}\n📅 ${dataSel && formatData(dataSel)} às ${horarioSel}\n👤 ${nome}${cancelToken ? `\n\nCaso precise cancelar: https://design-estetica.vercel.app/cancelar/${cancelToken}` : ''}`
+                `Ola Luana! Acabei de agendar:\nServico: ${servicoSel?.nome}\nData: ${dataSel && formatData(dataSel)} as ${horarioSel}\nNome: ${nome}${cancelToken ? `\n\nPara cancelar: https://design-estetica.vercel.app/cancelar/${cancelToken}` : ''}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
