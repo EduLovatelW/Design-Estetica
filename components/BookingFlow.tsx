@@ -539,7 +539,7 @@ export default function BookingFlow() {
 
             {/* Botão WhatsApp */}
             <a
-              href={`https://wa.me/5541999999999?text=${encodeURIComponent(
+              href={`https://wa.me/554699256686?text=${encodeURIComponent(
                 `Olá Luana! 😊 Acabei de agendar:\n📌 ${servicoSel?.nome}\n📅 ${dataSel && formatData(dataSel)} às ${horarioSel}\n👤 ${nome}`
               )}`}
               target="_blank"
