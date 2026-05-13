@@ -15,8 +15,9 @@ type Agendamento = {
   horario: string
   status: StatusAgendamento
   observacoes: string | null
+  cancelado_pelo_cliente: boolean | null
   clientes: { nome: string; whatsapp: string } | null
-  servicos: { nome: string } | null
+  servicos: { nome: string; preco_base: number } | null
 }
 
 type Servico = {
@@ -32,7 +33,6 @@ type AgendamentoCliente = {
   data: string
   horario: string
   status: StatusAgendamento
-  valor_cobrado: number | null
   servicos: { nome: string } | null
 }
 
@@ -50,8 +50,6 @@ type GrupoCliente = {
   primaryId: string
   observacoes: string | null
   historia: (AgendamentoCliente & { clienteNome: string })[]
-  visitas_concluidas: number
-  valor_total: number
 }
 
 type AgendamentoFin = {
@@ -113,10 +111,7 @@ function agruparPorWhatsApp(clientes: ClienteComHistorico[]): GrupoCliente[] {
   for (const c of clientes) {
     const key = c.whatsapp
     if (!map.has(key)) {
-      map.set(key, {
-        whatsapp: key, nome: c.nome, primaryId: c.id,
-        observacoes: c.observacoes, historia: [], visitas_concluidas: 0, valor_total: 0,
-      })
+      map.set(key, { whatsapp: key, nome: c.nome, primaryId: c.id, observacoes: c.observacoes, historia: [] })
     } else {
       const g = map.get(key)!
       if (!g.observacoes && c.observacoes) { g.observacoes = c.observacoes; g.primaryId = c.id }
@@ -124,10 +119,6 @@ function agruparPorWhatsApp(clientes: ClienteComHistorico[]): GrupoCliente[] {
     const g = map.get(key)!
     for (const ag of c.agendamentos ?? []) {
       g.historia.push({ ...ag, clienteNome: c.nome })
-      if (ag.status === 'concluido') {
-        g.visitas_concluidas++
-        g.valor_total += ag.valor_cobrado ?? 0
-      }
     }
   }
   for (const g of map.values()) {
@@ -174,6 +165,7 @@ function CardAgendamento({
   const [atualizando, setAtualizando] = useState(false)
   const cfg = STATUS_CFG[item.status] ?? STATUS_CFG.pendente
   const podeAcionar = !muted && item.status !== 'concluido' && item.status !== 'cancelado'
+  const canceladoPelaCliente = item.cancelado_pelo_cliente === true
 
   async function handle(status: StatusAgendamento) {
     setAtualizando(true)
@@ -199,9 +191,15 @@ function CardAgendamento({
           </p>
           <p className="text-stone-400 text-xs mt-0.5" style={sans}>{item.clientes?.whatsapp ?? '—'}</p>
         </div>
-        <span className={`text-[10px] px-2.5 py-1 rounded-full border font-medium tracking-wider uppercase whitespace-nowrap shrink-0 ${cfg.bg} ${cfg.text} ${cfg.border}`} style={sans}>
-          {cfg.label}
-        </span>
+        {canceladoPelaCliente ? (
+          <span className="text-[10px] px-2.5 py-1 rounded-full border font-medium tracking-wider uppercase whitespace-nowrap shrink-0 bg-red-100 text-red-600 border-red-300" style={sans}>
+            Cancelado pela cliente
+          </span>
+        ) : (
+          <span className={`text-[10px] px-2.5 py-1 rounded-full border font-medium tracking-wider uppercase whitespace-nowrap shrink-0 ${cfg.bg} ${cfg.text} ${cfg.border}`} style={sans}>
+            {cfg.label}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2 text-sm text-stone-500 mb-3" style={sans}>
@@ -413,16 +411,6 @@ function CardClienteAgrupado({
             <p className="font-semibold text-[#2D1B33] text-sm leading-tight" style={sans}>{grupo.nome}</p>
             <p className="text-stone-400 text-xs mt-0.5" style={sans}>{grupo.whatsapp}</p>
           </div>
-          <div className="text-right shrink-0 mr-2">
-            <p className="text-sm font-semibold text-[#2D1B33]" style={sans}>
-              {grupo.visitas_concluidas} {grupo.visitas_concluidas === 1 ? 'visita' : 'visitas'}
-            </p>
-            {grupo.valor_total > 0 && (
-              <p className="text-xs text-[#D4548A]" style={sans}>
-                R$ {grupo.valor_total.toFixed(2).replace('.', ',')}
-              </p>
-            )}
-          </div>
           <span className="text-stone-300 text-xs shrink-0">{expandido ? '▲' : '▼'}</span>
         </div>
       </button>
@@ -442,11 +430,6 @@ function CardClienteAgrupado({
                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-medium tracking-wider border shrink-0 ${cfg.bg} ${cfg.text} ${cfg.border}`}>
                         {cfg.label}
                       </span>
-                      {ag.valor_cobrado !== null && (
-                        <span className="text-stone-500 shrink-0 ml-1">
-                          R$ {ag.valor_cobrado.toFixed(2).replace('.', ',')}
-                        </span>
-                      )}
                     </div>
                   )
                 })}
@@ -492,7 +475,7 @@ function AbaClientes({ sb }: { sb: SupabaseClient }) {
     setLoading(true)
     const { data, error } = await sb
       .from('clientes')
-      .select('id, nome, whatsapp, observacoes, agendamentos(id, data, horario, status, valor_cobrado, servicos(nome))')
+      .select('id, nome, whatsapp, observacoes, agendamentos(id, data, horario, status, servicos(nome))')
       .order('nome')
     if (error) console.error('[Clientes]', error)
     setGrupos(agruparPorWhatsApp((data as unknown as ClienteComHistorico[]) ?? []))
@@ -840,14 +823,15 @@ export default function AdminPage() {
   }
   const sb = sbRef.current
 
-  const [abaAtiva, setAbaAtiva]         = useState<Tab>('agenda')
-  const [hoje, setHoje]                 = useState<Agendamento[]>([])
-  const [proximos, setProximos]         = useState<Agendamento[]>([])
-  const [historico, setHistorico]       = useState<Agendamento[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [loadingHist, setLoadingHist]   = useState(false)
+  const [abaAtiva, setAbaAtiva]           = useState<Tab>('agenda')
+  const [hoje, setHoje]                   = useState<Agendamento[]>([])
+  const [proximos, setProximos]           = useState<Agendamento[]>([])
+  const [historico, setHistorico]         = useState<Agendamento[]>([])
+  const [loading, setLoading]             = useState(true)
+  const [loadingHist, setLoadingHist]     = useState(false)
   const [mostrarHistorico, setMostrarHistorico] = useState(false)
-  const historicoCarregado              = useRef(false)
+  const [alertaCancelamentos, setAlertaCancelamentos] = useState(0)
+  const historicoCarregado                = useRef(false)
 
   const hojeStr = new Date().toISOString().split('T')[0]
 
@@ -861,8 +845,13 @@ export default function AdminPage() {
 
   const fetchAgenda = useCallback(async () => {
     setLoading(true)
-    const select = 'id, data, horario, status, observacoes, clientes(nome, whatsapp), servicos(nome)'
-    const [resHoje, resProximos] = await Promise.all([
+    const select = 'id, data, horario, status, observacoes, cancelado_pelo_cliente, clientes(nome, whatsapp), servicos(nome, preco_base)'
+
+    const seteAtras = new Date()
+    seteAtras.setDate(seteAtras.getDate() - 7)
+    const seteAtrasStr = seteAtras.toISOString().split('T')[0]
+
+    const [resHoje, resProximos, resAlerta] = await Promise.all([
       sb.from('agendamentos').select(select)
         .eq('data', hojeStr)
         .in('status', ['pendente', 'confirmado'])
@@ -871,11 +860,18 @@ export default function AdminPage() {
         .gt('data', hojeStr)
         .in('status', ['pendente', 'confirmado'])
         .order('data').order('horario').limit(15),
+      sb.from('agendamentos')
+        .select('id', { count: 'exact', head: true })
+        .eq('cancelado_pelo_cliente', true)
+        .gte('data', seteAtrasStr),
     ])
+
     if (resHoje.error)     console.error('[Admin] query hoje:', resHoje.error)
     if (resProximos.error) console.error('[Admin] query proximos:', resProximos.error)
+
     setHoje((resHoje.data as unknown as Agendamento[]) ?? [])
     setProximos((resProximos.data as unknown as Agendamento[]) ?? [])
+    setAlertaCancelamentos(resAlerta.count ?? 0)
     setLoading(false)
   }, [sb, hojeStr])
 
@@ -886,7 +882,7 @@ export default function AdminPage() {
     const trintaDiasAtras = new Date()
     trintaDiasAtras.setDate(trintaDiasAtras.getDate() - 30)
     const inicioStr = trintaDiasAtras.toISOString().split('T')[0]
-    const select = 'id, data, horario, status, observacoes, clientes(nome, whatsapp), servicos(nome)'
+    const select = 'id, data, horario, status, observacoes, cancelado_pelo_cliente, clientes(nome, whatsapp), servicos(nome, preco_base)'
     const { data, error } = await sb
       .from('agendamentos')
       .select(select)
@@ -908,7 +904,15 @@ export default function AdminPage() {
   }
 
   async function handleAction(id: string, status: StatusAgendamento) {
-    const { error } = await sb.from('agendamentos').update({ status }).eq('id', id)
+    const updateData: { status: StatusAgendamento; valor_cobrado?: number } = { status }
+
+    if (status === 'concluido') {
+      const ag = [...hoje, ...proximos].find(a => a.id === id)
+      const preco = ag?.servicos?.preco_base
+      if (preco !== undefined && preco !== null) updateData.valor_cobrado = preco
+    }
+
+    const { error } = await sb.from('agendamentos').update(updateData).eq('id', id)
     if (error) console.error('[Admin] update status:', error)
     await fetchAgenda()
     if (historicoCarregado.current) fetchHistorico()
@@ -948,6 +952,11 @@ export default function AdminPage() {
               {t.id === 'agenda' && !loading && totalPendente > 0 && (
                 <span className="bg-[#D4548A] text-white text-[8px] rounded-full min-w-[15px] h-[15px] px-0.5 inline-flex items-center justify-center font-bold leading-none">
                   {totalPendente}
+                </span>
+              )}
+              {t.id === 'agenda' && !loading && alertaCancelamentos > 0 && (
+                <span className="bg-red-500 text-white text-[8px] rounded-full w-[15px] h-[15px] inline-flex items-center justify-center font-bold leading-none">
+                  !
                 </span>
               )}
             </button>

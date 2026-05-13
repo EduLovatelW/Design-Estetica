@@ -44,6 +44,7 @@ export default function BookingFlow() {
   const [obs, setObs] = useState("");
   const [loading, setLoading] = useState(false);
   const [confirmado, setConfirmado] = useState(false);
+  const [cancelToken, setCancelToken] = useState<string | null>(null);
   const [loadingServicos, setLoadingServicos] = useState(true);
   const [erroServicos, setErroServicos] = useState<string | null>(null);
 
@@ -92,13 +93,17 @@ export default function BookingFlow() {
     const { data: cliente } = await supabase.from("clientes")
       .insert({ nome, whatsapp }).select().single();
     if (cliente) {
-      await supabase.from("agendamentos").insert({
-        cliente_id: cliente.id,
-        servico_id: servicoSel.id,
-        data: dataSel.toISOString().split("T")[0],
-        horario: horarioSel,
-        status: "pendente",
-      });
+      const { data: ag } = await supabase.from("agendamentos")
+        .insert({
+          cliente_id: cliente.id,
+          servico_id: servicoSel.id,
+          data: dataSel.toISOString().split("T")[0],
+          horario: horarioSel,
+          status: "pendente",
+        })
+        .select("cancel_token")
+        .single();
+      if (ag?.cancel_token) setCancelToken(ag.cancel_token as string);
     }
     setLoading(false);
     setConfirmado(true);
@@ -540,7 +545,7 @@ export default function BookingFlow() {
             {/* Botão WhatsApp */}
             <a
               href={`https://wa.me/554699256686?text=${encodeURIComponent(
-                `Olá Luana! 😊 Acabei de agendar:\n📌 ${servicoSel?.nome}\n📅 ${dataSel && formatData(dataSel)} às ${horarioSel}\n👤 ${nome}`
+                `Olá Luana! 😊 Acabei de agendar:\n📌 ${servicoSel?.nome}\n📅 ${dataSel && formatData(dataSel)} às ${horarioSel}\n👤 ${nome}${cancelToken ? `\n\nCaso precise cancelar: https://design-estetica.vercel.app/cancelar/${cancelToken}` : ''}`
               )}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -553,10 +558,23 @@ export default function BookingFlow() {
               Confirmar pelo WhatsApp
             </a>
 
+            {/* Link de cancelamento */}
+            {cancelToken && (
+              <div className="mt-4 p-4 bg-stone-50 rounded-xl border border-stone-100 text-left">
+                <p className="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-2" style={sans}>
+                  Guarde este link para cancelar se precisar:
+                </p>
+                <p className="text-xs text-[#2D1B33] break-all select-all font-mono leading-relaxed">
+                  https://design-estetica.vercel.app/cancelar/{cancelToken}
+                </p>
+              </div>
+            )}
+
             <button
               onClick={() => {
                 setStep(1);
                 setConfirmado(false);
+                setCancelToken(null);
                 setServicoSel(null);
                 setDataSel(null);
                 setHorarioSel(null);
